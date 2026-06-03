@@ -13,6 +13,7 @@ import torch
 from executorch.exir.dynamic_shape import DynamicMemoryPlanningMode
 from executorch.exir.pass_manager import PassType
 from executorch.exir.passes import MemoryPlanningPass, ToOutVarPass
+from executorch.exir.passes.propagate_device_pass import PropagateDeviceConfig
 from executorch.exir.passes.sym_shape_eval_pass import ConstraintBasedSymShapeEvalPass
 from executorch.exir.tracer import ExirDynamoConfig
 from torch.fx._compatibility import compatibility
@@ -60,6 +61,13 @@ class ExecutorchBackendConfig:
     # A single memory planning pass can be defined for all the programs in the
     # EdgeProgramManager or can be defined per program.
     memory_planning_pass: Union[PassType, Dict[str, PassType]] = MemoryPlanningPass()
+
+    # A single propagate device config can be defined for all the programs in the
+    # EdgeProgramManager or can be defined per program.
+    propagate_device_config: Union[
+        PropagateDeviceConfig, Dict[str, PropagateDeviceConfig]
+    ] = field(default_factory=PropagateDeviceConfig)
+
     to_out_var_pass: PassType = ToOutVarPass(ignore_to_out_var_failure=False)
     dynamic_memory_planning_mode: DynamicMemoryPlanningMode = (
         DynamicMemoryPlanningMode.UPPER_BOUND

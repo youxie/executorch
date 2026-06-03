@@ -153,7 +153,6 @@ class MemoryPlanningPass(PassBase):
         alloc_mutable_buffers: bool = True,
         share_mutable_buffers: bool = False,
         alignment: int = ALIGNMENT,
-        enable_non_cpu_memory_planning: bool = False,
     ) -> None:
         r"""
         alloc_graph_input/alloc_graph_output will have 4 different combinations
@@ -174,8 +173,11 @@ class MemoryPlanningPass(PassBase):
         self.alloc_mutable_buffers = alloc_mutable_buffers
         self.share_mutable_buffers = share_mutable_buffers
         self.alignment = alignment
-        self.enable_non_cpu_memory_planning = enable_non_cpu_memory_planning
         self.state = _MemoryPlanningState()
+        # Set by EdgeProgramManager.to_executorch() from the top-level
+        # ExecutorchBackendConfig. When True, apply_algo partitions specs by
+        # device so non-CPU buffers get their own memory arenas.
+        self.enable_non_cpu_memory_planning: bool = False
 
     def _set_alloc_node_spec(self, graph_module: torch.fx.GraphModule) -> None:
         """
@@ -237,11 +239,14 @@ class MemoryPlanningPass(PassBase):
         self,
         graph_module: torch.fx.GraphModule,
         graph_signature: Optional[ExportGraphSignature] = None,
+        enable_non_cpu_memory_planning: Optional[bool] = None,
     ) -> PassResult:
         """
         A pass for memory planning. The actual algorithm used will be picked by
         memory_planning_algo
         """
+        if enable_non_cpu_memory_planning is None:
+            enable_non_cpu_memory_planning = self.enable_non_cpu_memory_planning
         self._set_alloc_node_spec(graph_module)
         # TODO(shunting) if people have concern of adding a field to GraphModule
         # directly, we should define a GraphModule subclass that we can add our
@@ -259,7 +264,7 @@ class MemoryPlanningPass(PassBase):
             # If mutable buffers are shared, then do not allocate them in the
             # main memory planning algo; they are allocated in run_multimethod.
             self.alloc_mutable_buffers and not self.share_mutable_buffers,
-            self.enable_non_cpu_memory_planning,
+            enable_non_cpu_memory_planning,
         )
 
         if self.share_mutable_buffers and graph_signature is not None:
